@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+    <title>ERC20 Token Generator - Cyber Token</title>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Cyber Token</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header bg-dark text-white">Wallet & Network Detail</div>
+            <div class="card-body">
+                <table class="table table-stripped">
+                    <tbody>
+                    <tr>
+                        <th>Wallet Address</th>
+                        <td id="wallet_address"></td>
+                    </tr>
+                    <tr>
+                        <th>Wallet Balance (ETH)</th>
+                        <td id="wallet_balance"></td>
+                    </tr>
+                    <tr>
+                        <th>Network</th>
+                        <td id="network"></td>
+                    </tr>
+                    <tr>
+                        <th>Deployment Status</th>
+                        <td id="deployment_status">Not started</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <form action="" method="post" id="create_form">
+            <div class="row">
+                <div class="col-6">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white">Token Details</div>
+                        <div class="card-body">
+                            <div class="form-group mb-3">
+                                <label for="name">Token Name*</label>
+                                <input type="text" id="name" class="form-control" name="name" placeholder="Your token name" required>
+                                <small tabindex="-1" class="form-text text-muted">Choose a name for your token</small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="symbol">Token Symbol*</label>
+                                <input type="text" id="symbol" class="form-control" name="symbol" placeholder="Your token symbol" required>
+                                <small tabindex="-1" class="form-text text-muted">Choose a symbol for your token (3-5 chars)</small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="decimals">Token decimals*</label>
+                                <input type="number" id="decimals" class="form-control" name="decimals" value="18" min="0" max="18" step="1" required>
+                                <small tabindex="-1" class="form-text text-muted">Insert the decimal precision, If don't know leave to 18</small>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="totalSupply">Total Supply*</label>
+                                <input type="number" id="totalSupply" class="form-control" name="totalSupply" placeholder="Your token max supply" min="1" step="1" required>
+                                <small tabindex="-1" class="form-text text-muted">Insert maximum number of tokens available</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white">Token Type</div>
+                        <div class="card-body">
+                            <div class="form-group mb-3">
+                                <label for="type">Token Type*</label>
+                                <select id="type" class="form-control" name="type">
+                                    <option value="ERC20">ERC20</option>
+                                    <option value="ERC20Burnable">ERC20Burnable</option>
+                                    <option value="ERC20Capped">ERC20Capped</option>
+                                    <option value="ERC20Pausable">ERC20Pausable</option>
+                                </select>
+                                <small tabindex="-1" class="form-text text-muted">Choose your token type</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-dark btn-lg mt-3">Create</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.3.5/web3.min.js" integrity="sha512-S/O+gH5szs/+/dUylm15Jp/JZJsIoWlpSVMwT6yAS4Rh7kazaRUxSzFBwnqE2/jBphcr7xovTQJaopiEZAzi+A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        var web3, provider, wallet_address, wallet_balance, networkId, isMetaMaskLocked;
+
+        var erc20Abi = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "_name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "_symbol",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "_decimals",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_totalSupply",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "_owner",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "_spender",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "Approval",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "_from",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "_to",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "Transfer",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_owner",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "_spender",
+                        "type": "address"
+                    }
+                ],
+                "name": "allowance",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "remaining",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_spender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "approve",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "success",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_owner",
+                        "type": "address"
+                    }
+                ],
+                "name": "balanceOf",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "balance",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "decimals",
+                "outputs": [
+                    {
+                        "internalType": "uint8",
+                        "name": "",
+                        "type": "uint8"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_spender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "decreaseAllowance",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_spender",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "increaseAllowance",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "name",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "",
+                        "type": "string"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "symbol",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "",
+                        "type": "string"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "totalSupply",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_to",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "transfer",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "success",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_from",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "_to",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_value",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "transferFrom",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "success",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+        var erc20Bytecode = "0x60806040523480156200001157600080fd5b5060405162000c1d38038062000c1d8339810160408190526200003491620001ec565b83516200004990600090602087019062000093565b5082516200005f90600190602086019062000093565b506002805460ff191660ff939093169290921790915560038190553360009081526004602052604090205550620002c69050565b828054620000a19062000273565b90600052602060002090601f016020900481019282620000c5576000855562000110565b82601f10620000e057805160ff191683800117855562000110565b8280016001018555821562000110579182015b8281111562000110578251825591602001919060010190620000f3565b506200011e92915062000122565b5090565b5b808211156200011e576000815560010162000123565b600082601f8301126200014a578081fd5b81516001600160401b0380821115620001675762000167620002b0565b604051601f8301601f19908116603f01168101908282118183101715620001925762000192620002b0565b81604052838152602092508683858801011115620001ae578485fd5b8491505b83821015620001d15785820183015181830184015290820190620001b2565b83821115620001e257848385830101525b9695505050505050565b6000806000806080858703121562000202578384fd5b84516001600160401b038082111562000219578586fd5b620002278883890162000139565b955060208701519150808211156200023d578485fd5b506200024c8782880162000139565b935050604085015160ff8116811462000263578283fd5b6060959095015193969295505050565b6002810460018216806200028857607f821691505b60208210811415620002aa57634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b61094780620002d66000396000f3fe608060405234801561001057600080fd5b50600436106100a95760003560e01c80633950935111610071578063395093511461012957806370a082311461013c57806395d89b411461014f578063a457c2d714610157578063a9059cbb1461016a578063dd62ed3e1461017d576100a9565b806306fdde03146100ae578063095ea7b3146100cc57806318160ddd146100ec57806323b872dd14610101578063313ce56714610114575b600080fd5b6100b6610190565b6040516100c39190610667565b60405180910390f35b6100df6100da366004610633565b610222565b6040516100c3919061065c565b6100f4610238565b6040516100c3919061089b565b6100df61010f3660046105f8565b61023e565b61011c6102b0565b6040516100c391906108a4565b6100df610137366004610633565b6102b9565b6100f461014a3660046105a5565b6102f5565b6100b6610314565b6100df610165366004610633565b610323565b6100df610178366004610633565b61037e565b6100f461018b3660046105c6565b61038b565b60606000805461019f906108d6565b80601f01602080910402602001604051908101604052809291908181526020018280546101cb906108d6565b80156102185780601f106101ed57610100808354040283529160200191610218565b820191906000526020600020905b8154815290600101906020018083116101fb57829003601f168201915b5050505050905090565b600061022f3384846103b6565b50600192915050565b60035490565b600061024b84848461046a565b6001600160a01b0384166000908152600560209081526040808320338452909152902054828110156102985760405162461bcd60e51b815260040161028f90610785565b60405180910390fd5b6102a585338584036103b6565b506001949350505050565b60025460ff1690565b3360008181526005602090815260408083206001600160a01b0387168452909152812054909161022f9185906102f09086906108b2565b6103b6565b6001600160a01b0381166000908152600460205260409020545b919050565b60606001805461019f906108d6565b3360009081526005602090815260408083206001600160a01b0386168452909152812054828110156103675760405162461bcd60e51b815260040161028f90610856565b61037433858584036103b6565b5060019392505050565b600061022f33848461046a565b6001600160a01b03918216600090815260056020908152604080832093909416825291909152205490565b6001600160a01b0383166103dc5760405162461bcd60e51b815260040161028f90610812565b6001600160a01b0382166104025760405162461bcd60e51b815260040161028f906106fd565b6001600160a01b0380841660008181526005602090815260408083209487168084529490915290819020849055517f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b9259061045d90859061089b565b60405180910390a3505050565b6001600160a01b0383166104905760405162461bcd60e51b815260040161028f906107cd565b6001600160a01b0382166104b65760405162461bcd60e51b815260040161028f906106ba565b6104c1838383610589565b6001600160a01b038316600090815260046020526040902054818110156104fa5760405162461bcd60e51b815260040161028f9061073f565b6001600160a01b038085166000908152600460205260408082208585039055918516815290812080548492906105319084906108b2565b92505081905550826001600160a01b0316846001600160a01b03167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef8460405161057b919061089b565b60405180910390a350505050565b505050565b80356001600160a01b038116811461030f57600080fd5b6000602082840312156105b6578081fd5b6105bf8261058e565b9392505050565b600080604083850312156105d8578081fd5b6105e18361058e565b91506105ef6020840161058e565b90509250929050565b60008060006060848603121561060c578081fd5b6106158461058e565b92506106236020850161058e565b9150604084013590509250925092565b60008060408385031215610645578182fd5b61064e8361058e565b946020939093013593505050565b901515815260200190565b6000602080835283518082850152825b8181101561069357858101830151858201604001528201610677565b818111156106a45783604083870101525b50601f01601f1916929092016040019392505050565b60208082526023908201527f45524332303a207472616e7366657220746f20746865207a65726f206164647260408201526265737360e81b606082015260800190565b60208082526022908201527f45524332303a20617070726f766520746f20746865207a65726f206164647265604082015261737360f01b606082015260800190565b60208082526026908201527f45524332303a207472616e7366657220616d6f756e7420657863656564732062604082015265616c616e636560d01b606082015260800190565b60208082526028908201527f45524332303a207472616e7366657220616d6f756e74206578636565647320616040820152676c6c6f77616e636560c01b606082015260800190565b60208082526025908201527f45524332303a207472616e736665722066726f6d20746865207a65726f206164604082015264647265737360d81b606082015260800190565b60208082526024908201527f45524332303a20617070726f76652066726f6d20746865207a65726f206164646040820152637265737360e01b606082015260800190565b60208082526025908201527f45524332303a2064656372656173656420616c6c6f77616e63652062656c6f77604082015264207a65726f60d81b606082015260800190565b90815260200190565b60ff91909116815260200190565b600082198211156108d157634e487b7160e01b81526011600452602481fd5b500190565b6002810460018216806108ea57607f821691505b6020821081141561090b57634e487b7160e01b600052602260045260246000fd5b5091905056fea2646970667358221220d176bb10cf2212b7c549041460a34da7ab0f4ec9c98d0b5c04fbebde7413916764736f6c63430008010033"
+
+        window.addEventListener('load', async () => {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                window.ethereum.enable().then(function (res) {
+                    start(res)
+                })
+            } else {
+                alert("No web3 provider detected, please install metamask.")
+            }
+        })
+
+        function start(wallet) {
+            wallet_address = wallet[0];
+            provider = web3.currentProvider;
+
+            // display wallet address
+            document.getElementById('wallet_address').innerText = wallet_address
+
+            // get network id
+            updateNetwork()
+
+            setInterval(function () {
+                updateNetwork();
+
+                isLocked()
+                    .then(function (isLocked) {
+                        if (isLocked) {
+                            isMetaMaskLocked = true
+                            alert('Metamask is locked, please unlock it.')
+                        }
+
+                        return getAccount()
+                    })
+                    .then(function (account) {
+                        if (account.length > 0) {
+                            if (isMetaMaskLocked) {
+                                isMetaMaskLocked = false;
+                            }
+
+                            wallet_address = account[0];
+                            document.getElementById('wallet_address').innerText = wallet_address
+
+                            return getBalance(account[0]);
+                        }
+                    })
+                    .then(function (balance) {
+                        wallet_balance = balance
+                        document.getElementById('wallet_balance').innerText = wallet_balance
+                    })
+                    .fail(function (err) {
+                        alert(err)
+                    })
+            }, 1000);
+        }
+
+        function getEthNetworkId() {
+            return sendSync({ method: 'net_version', params: [] })
+                .then(function (result) {
+                    return result['result'];
+                })
+                .fail(function (err) {
+                    return err
+                })
+        }
+
+        function requestAccounts() {
+            return sendSync({ method: 'eth_requestAccounts' })
+                .then(function (result) {
+                    return result['result'];
+                })
+                .fail(function (err) {
+                    return err;
+                })
+        }
+
+        function getAccount() {
+            return sendSync({ method: 'eth_accounts', params: [] })
+                .then(function (result) {
+                    return result['result'];
+                })
+                .fail(function (err) {
+                    return err;
+                })
+        }
+
+        function getBalance(address) {
+            return sendSync({ method: 'eth_getBalance', params: [address] })
+                .then(function (result) {
+                    return web3.utils.fromWei(result['result']);
+                })
+                .fail(function (err) {
+                    return err;
+                })
+        }
+
+        function isLocked() {
+            return getAccount()
+                .then(function (accounts) {
+                    return accounts.length <= 0;
+                })
+                .fail(function (err) {
+                    return err
+                });
+        }
+
+        // reusable methods
+        function updateNetwork() {
+            getEthNetworkId()
+                .then(function (id) {
+                    networkId = id
+
+                    if (id === '1') {
+                        document.getElementById('network').innerText = 'Mainnet'
+                    } else if (id === '3') {
+                        document.getElementById('network').innerText = 'Ropsten Testnet'
+                    } else if (id === '4') {
+                        document.getElementById('network').innerText = 'Rinkeby Testnet'
+                    } else if (id === '5') {
+                        document.getElementById('network').innerText = 'Goerli Testnet'
+                    } else {
+                        document.getElementById('network').innerText = id
+                    }
+
+                    return getBalance(wallet_address);
+                })
+                .then(function (balance) {
+                    wallet_balance = balance
+                    document.getElementById('wallet_balance').innerText = wallet_balance
+                })
+                .fail(function (err) {
+                    console.log(err)
+                })
+        }
+
+        // helper methods
+        function sendSync(params) {
+            var defer = $.Deferred();
+
+            provider.sendAsync(params, function (err, result) {
+                    if (err)
+                        return defer.reject(err.json());
+                    if (result['error'])
+                        return defer.reject(result['error']);
+                    defer.resolve(result)
+                }
+            );
+
+            return defer.promise();
+        }
+
+        // when user submit form button
+        $(function() {
+            $('#create_form').submit(function (e) {
+                e.preventDefault()
+
+                var name = $('#name').val()
+                var symbol = $('#symbol').val()
+                var decimals = $('#decimals').val()
+                var totalSupply = $('#totalSupply').val()
+
+                var erc20 = new web3.eth.Contract(erc20Abi)
+                erc20
+                    .deploy({
+                        data: erc20Bytecode,
+                        arguments: [name, symbol, decimals, totalSupply]
+                    })
+                    .send({from: wallet_address}, function (err, transactionHash) {
+                        if (err) {
+                            alert(err)
+                        }
+
+                        $('#deployment_status').text('In Progress')
+                    })
+                    .on('confirmation', function () {
+                        return;
+                    })
+                    .then(function (contract) {
+                        if (!contract.options.address) {
+                            alert('Failed to deployed')
+                            $('#deployment_status').text('Failed')
+                            return;
+                        }
+
+                        var contract_address = contract.options.address;
+                        $('#deployment_status').text('Successfully: ' + contract_address)
+                    })
+                    .catch(function (err) {
+                        alert(err)
+                    })
+            })
+        });
+    </script>
+</body>
+</html>
